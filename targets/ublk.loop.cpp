@@ -6,6 +6,11 @@
 #include <sys/epoll.h>
 #include "ublksrv_tgt.h"
 
+// Add fallocate flag definitions if not available
+#ifndef FALLOC_FL_ZERO_RANGE
+#define FALLOC_FL_ZERO_RANGE 0x10
+#endif
+
 struct loop_tgt_data {
 	bool user_copy;
 	bool auto_zc;

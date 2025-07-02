@@ -11,7 +11,6 @@
 #include <getopt.h>
 #include <stdarg.h>
 #include <errno.h>
-#include <error.h>
 #include <string.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>
@@ -20,6 +19,11 @@
 #include "ublksrv.h"
 #include "ublksrv_utils.h"
 #include "ublksrv_aio.h"
+
+// Add fallocate flag definitions if not available
+#ifndef FALLOC_FL_ZERO_RANGE
+#define FALLOC_FL_ZERO_RANGE 0x10
+#endif
 
 static bool use_aio = 0;
 static int backing_fd = -1;

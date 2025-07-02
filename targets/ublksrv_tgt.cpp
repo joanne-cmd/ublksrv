@@ -307,17 +307,22 @@ static int ublksrv_start_daemon(struct ublksrv_ctrl_dev *ctrl_dev, int evtfd)
 #pragma GCC diagnostic ignored "-Wstack-usage="
 static int __mkpath(char *dir, mode_t mode)
 {
+	char *dirname_str;
 	struct stat sb;
+	umask_t mask;
 	int ret;
-	mode_t mask;
 
-	if (!dir)
+	if (!dir || !*dir)
 		return -EINVAL;
 
 	if (!stat(dir, &sb))
 		return 0;
 
-	__mkpath(dirname(strdupa(dir)), mode);
+	dirname_str = strdupa(dir);
+	if (!dirname_str)
+		return -ENOMEM;
+	
+	__mkpath(dirname(dirname_str), mode);
 
 	mask = umask(0);
 	ret = mkdir(dir, mode);
@@ -328,7 +333,10 @@ static int __mkpath(char *dir, mode_t mode)
 
 static int mkpath(const char *dir)
 {
-	return __mkpath(strdupa(dir), S_IRWXU | S_IRWXG | S_IRWXO);
+	char *dir_copy = strdupa(dir);
+	if (!dir_copy)
+		return -ENOMEM;
+	return __mkpath(dir_copy, S_IRWXU | S_IRWXG | S_IRWXO);
 }
 #pragma GCC diagnostic pop
 

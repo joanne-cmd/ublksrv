@@ -8,7 +8,6 @@
 #include <getopt.h>
 #include <stdarg.h>
 #include <errno.h>
-#include <error.h>
 #include <string.h>
 #include <sys/types.h>
 #include <unistd.h>
