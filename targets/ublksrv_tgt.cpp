@@ -3,6 +3,8 @@
 #include "config.h"
 #include <semaphore.h>
 #include "ublksrv_tgt.h"
+#include <alloca.h>
+#include <cstring>
 
 #define ERROR_EVTFD_DEVID   0xfffffffffffffffe
 
@@ -302,14 +304,11 @@ static int ublksrv_start_daemon(struct ublksrv_ctrl_dev *ctrl_dev, int evtfd)
 	return ublksrv_device_handler(ctrl_dev, evtfd);
 }
 
-//todo: resolve stack usage warning for mkpath/__mkpath
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wstack-usage="
 static int __mkpath(char *dir, mode_t mode)
 {
 	char *dirname_str;
 	struct stat sb;
-	umask_t mask;
+	mode_t mask;
 	int ret;
 
 	if (!dir || !*dir)
@@ -318,9 +317,10 @@ static int __mkpath(char *dir, mode_t mode)
 	if (!stat(dir, &sb))
 		return 0;
 
-	dirname_str = strdupa(dir);
-	if (!dirname_str)
-		return -ENOMEM;
+	// Use alloca for stack allocation (no need to free)
+	size_t dir_len = strlen(dir);
+	dirname_str = (char*)alloca(dir_len + 1);
+	strcpy(dirname_str, dir);
 	
 	__mkpath(dirname(dirname_str), mode);
 
@@ -333,12 +333,12 @@ static int __mkpath(char *dir, mode_t mode)
 
 static int mkpath(const char *dir)
 {
-	char *dir_copy = strdupa(dir);
-	if (!dir_copy)
-		return -ENOMEM;
+	size_t dir_len = strlen(dir);
+	char *dir_copy = (char*)alloca(dir_len + 1);
+	strcpy(dir_copy, dir);
+	
 	return __mkpath(dir_copy, S_IRWXU | S_IRWXG | S_IRWXO);
 }
-#pragma GCC diagnostic pop
 
 /*
  * This function parses all the standard options that all targets support

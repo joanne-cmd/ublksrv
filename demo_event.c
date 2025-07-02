@@ -19,6 +19,7 @@
 #include "ublksrv.h"
 #include "ublksrv_utils.h"
 #include "ublksrv_aio.h"
+#include "alpine_compat.h"
 
 // Add fallocate flag definitions if not available
 #ifndef FALLOC_FL_ZERO_RANGE
@@ -523,76 +524,55 @@ static const struct ublksrv_tgt_type demo_event_tgt_type = {
 int main(int argc, char *argv[])
 {
 	static const struct option longopts[] = {
-		{ "need_get_data",	1,	NULL, 'g' },
-		{ "backing_file",	1,	NULL, 'f' },
-		{ "use_aio",		1,	NULL, 'a' },
+		{ "help",	no_argument,		NULL, 'h' },
+		{ "aio",	no_argument,		NULL, 'a' },
+		{ "file",	required_argument,	NULL, 'f' },
 		{ NULL }
 	};
 	struct ublksrv_dev_data data = {
-		.dev_id = -1,
-		.max_io_buf_bytes = DEF_BUF_SIZE,
-		.nr_hw_queues = DEF_NR_HW_QUEUES,
-		.queue_depth = DEF_QD,
-		.tgt_type = "demo_event",
+		.tgt_type = "event",
 		.tgt_ops = &demo_event_tgt_type,
-		.run_dir = ublksrv_get_pid_dir(),
-		.flags = 0,
 	};
 	struct ublksrv_ctrl_dev *dev;
-	int ret, opt;
+	int ret;
 
-	while ((opt = getopt_long(argc, argv, "f:ga",
-				  longopts, NULL)) != -1) {
-		switch (opt) {
-		case 'g':
-			data.flags |= UBLK_F_NEED_GET_DATA;
+	while ((ret = getopt_long(argc, argv, "haf:", longopts, NULL)) != -1) {
+		switch (ret) {
+		case 'h':
+			printf("Usage: %s [OPTIONS]\n", argv[0]);
+			printf("Options:\n");
+			printf("  -h, --help    Show this help message\n");
+			printf("  -a, --aio     Use AIO mode\n");
+			printf("  -f, --file    Backing file\n");
+			return 0;
+		case 'a':
+			use_aio = 1;
 			break;
 		case 'f':
-			backing_fd = open(optarg, O_RDWR | O_DIRECT);
+			backing_fd = open(optarg, O_RDWR);
 			if (backing_fd < 0)
-				backing_fd = -1;
+				error(EXIT_FAILURE, errno, "open %s", optarg);
 			break;
-		case 'a':
-			use_aio = true;
-			break;
+		default:
+			error(EXIT_FAILURE, 0, "Invalid option");
 		}
 	}
 
-	if (backing_fd < 0)
-		use_aio = false;
+	signal(SIGINT, sig_handler);
+	signal(SIGTERM, sig_handler);
 
-	if (signal(SIGTERM, sig_handler) == SIG_ERR)
-		error(EXIT_FAILURE, errno, "signal");
-	if (signal(SIGINT, sig_handler) == SIG_ERR)
-		error(EXIT_FAILURE, errno, "signal");
-
-	data.ublksrv_flags = UBLKSRV_F_NEED_EVENTFD;
 	dev = ublksrv_ctrl_init(&data);
 	if (!dev)
 		error(EXIT_FAILURE, ENODEV, "ublksrv_ctrl_init");
-	/* ugly, but signal handler needs this_dev */
-	this_ctrl_dev = dev;
 
 	ret = ublksrv_ctrl_add_dev(dev);
-	if (ret < 0) {
+	if (ret < 0)
 		error(0, -ret, "can't add dev %d", data.dev_id);
-		goto fail;
-	}
 
-	ret = event_start_daemon(dev);
-	if (ret < 0) {
+	ret = ublksrv_ctrl_start_dev(dev, getpid());
+	if (ret < 0)
 		error(0, -ret, "can't start daemon");
-		goto fail_del_dev;
-	}
 
-	ublksrv_ctrl_del_dev(dev);
 	ublksrv_ctrl_deinit(dev);
-	exit(EXIT_SUCCESS);
-
- fail_del_dev:
-	ublksrv_ctrl_del_dev(dev);
- fail:
-	ublksrv_ctrl_deinit(dev);
-
-	exit(EXIT_FAILURE);
+	return 0;
 }
