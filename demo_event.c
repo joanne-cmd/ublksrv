@@ -1,4 +1,7 @@
 // SPDX-License-Identifier: MIT or GPL-2.0-only
+#ifdef __linux__
+#include <linux/falloc.h>
+#endif
 
 #include <config.h>
 
