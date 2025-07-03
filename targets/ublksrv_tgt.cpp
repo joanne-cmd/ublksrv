@@ -3,7 +3,8 @@
 #include "config.h"
 #include <semaphore.h>
 #include "ublksrv_tgt.h"
-
+#undef strdupa
+#define        strdupa(x)      strcpy((char*)(alloca(strlen(x)+1)),x)
 #define ERROR_EVTFD_DEVID   0xfffffffffffffffe
 
 struct ublksrv_queue_info {
