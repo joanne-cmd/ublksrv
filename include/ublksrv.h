@@ -13,6 +13,7 @@
 
 #include <stdbool.h>
 #include <assert.h>
+#define _GNU_SOURCE
 #include <sched.h>
 
 #include "liburing.h"
